@@ -1091,41 +1091,46 @@ void play_ai(hash_table *hash_table1, stack *stack1, board *board1, uint8_t valu
     uint32_t configuration = convert_board(board1),
             index_list = 0;
 
-    // Cherche le maillon correspondant a la configuration
-    chain *chain1 = search_chain(hash_table1, number_ball_remained, configuration, &index_list);
+    if(number_ball_remained != 0) {
+        // Cherche le maillon correspondant a la configuration
+        chain *chain1 = search_chain(hash_table1, number_ball_remained, configuration, &index_list);
 
-    if(chain1 == NULL && number_ball_remained != 0)
-    { // Si le maillon n'existe pas
-        board *board_ball = create_board(number_ball_remained); // Creation d'un tableau contenant les billes
-        chain1 = new_chain(); // On cree un nouveau maillon
+        if (chain1 == NULL)
+        { // Si le maillon n'existe pas
+            board *board_ball = create_board(number_ball_remained); // Creation d'un tableau contenant les billes
+            chain1 = new_chain(); // On cree un nouveau maillon
 
-        for(index = 0; index < ROTATION; index++)
-        {
-            fill_ball_board(board1, board_ball); // Rempli le tableau de billes
-            chain1->table_ball[index] = board_ball; // On affecte le tableau de billes dans le tableau
-            chain1->table_configuration[index] = configuration; // On affecte la configuration dans le tableau
-            rotation_configuration(board1); // On tourne a 90 degres la configuration
-            configuration = convert_board(board1); // On convertit le plateau en base 3
-        }
-
-        // Ajoute en tete de liste dans la table de hashage
-        add_head_hash_table(hash_table1, number_ball_remained, chain1);
-        index_ball = random_ball(board_ball); // Prend au hasard une bille de couleur
-    }
-    else if(chain1 != NULL && number_ball_remained != 0)
-    { // Si le maillon existe
-        for(index = 0; index < chain1->size; index++)
-        { // On parcourt le tableau de configuration qui contient toutes les rotations
-            if(chain1->table_configuration[index] == configuration)
-            { // Si on atteind l'indice qui contient la configuration
-                break; // On sort de la boucle for
+            for (index = 0; index < ROTATION; index++)
+            {
+                fill_ball_board(board1, board_ball); // Rempli le tableau de billes
+                chain1->table_ball[index] = board_ball; // On affecte le tableau de billes dans le tableau
+                chain1->table_configuration[index] = configuration; // On affecte la configuration dans le tableau
+                rotation_configuration(board1); // On tourne a 90 degres la configuration
+                configuration = convert_board(board1); // On convertit le plateau en base 3
             }
-        }
-        index_ball = random_ball(chain1->table_ball[index]); // Prend au hasard une bille de couleur
-    }
 
-    push(stack1, number_ball_remained, index_list, index_ball); // Place en tete de pile la configuration et la bille utilise
-    board1->table[index_ball] = value; // Place le pion sur la grille de morpion
+            fill_ball_board(board1, board_ball); // Rempli le tableau de billes
+
+            // Ajoute en tete de liste dans la table de hashage
+            add_head_hash_table(hash_table1, number_ball_remained, chain1);
+            index_ball = random_ball(board_ball); // Prend au hasard une bille de couleur
+        }
+        else
+        { // Si le maillon existe
+            for (index = 0; index < chain1->size; index++)
+            { // On parcourt le tableau de configuration qui contient toutes les rotations
+                if (chain1->table_configuration[index] == configuration)
+                { // Si on atteind l'indice qui contient la configuration
+                    break; // On sort de la boucle for
+                }
+            }
+            index_ball = random_ball(chain1->table_ball[index]); // Prend au hasard une bille de couleur
+        }
+
+        // Place en tete de pile la configuration et la bille utilise
+        push(stack1, number_ball_remained, index_list, index_ball);
+        board1->table[index_ball] = value; // Place le pion sur la grille de morpion
+    }
 }
 
 /*
