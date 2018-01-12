@@ -432,10 +432,9 @@ void play(game *game1, hash_table *hash_table1, stack *stack1)
 
     do
     { // Tant que le jeu n'est pas termine. Il faut que les cases ne soient pas vides.
-        print_board(game1->tray); // Affichage du plateau
-
         if(game1->current_player->shape == game1->player2->shape)
         { // Si c'est au tour de l'utilisateur
+            print_board(game1->tray); // Affichage du plateau
             turn_current_player(game1); // Tour du joueur courant
             change_current_player(game1); // Changement de joueur
             play_ai(hash_table1, stack1, game1->tray, game1->current_player->shape); // Tour de l'intelligence artificielle
@@ -444,6 +443,7 @@ void play(game *game1, hash_table *hash_table1, stack *stack1)
         { // Si c'est au tour de l'ordinateur
             play_ai(hash_table1, stack1, game1->tray, game1->current_player->shape); // Tour de l'intelligence artificielle
             change_current_player(game1); // Changement de joueur
+            print_board(game1->tray); // Affichage du plateau
             turn_current_player(game1); // Tour du joueur courant
         }
 
@@ -1054,6 +1054,32 @@ void rotation_configuration(board *board1)
 }
 
 /*
+ * Symetrie d'une configuration
+ */
+void symetry_configuration(board *board1)
+{
+    int8_t column;
+    uint8_t row, index = 0;
+    uint8_t *table = malloc(board1->size * sizeof(uint8_t));
+
+    for(column = (SIZE - 1); column > -1; column--)
+    {
+        for(row = 0; row < SIZE; row++)
+        {
+            table[index] = get_square(board1, (uint8_t) column, row);
+            index += 1;
+        }
+    }
+
+    for(index = 0; index < board1->size; index++)
+    {
+        board1->table[index] = table[index];
+    }
+
+    free(table);
+}
+
+/*
  * Copie la ligne du plateau dans un tableau
  */
 void copy_row(board *board1, uint8_t *row, uint8_t index_row, uint8_t column)
@@ -1098,8 +1124,6 @@ void play_ai(hash_table *hash_table1, stack *stack1, board *board1, uint8_t valu
 
     // Cherche le maillon correspondant a la configuration
     chain *chain1 = search_chain(hash_table1, number_ball_remained, configuration, &index_list);
-
-    printf("Number ball : %hhu\n", number_ball_remained);
 
     if(chain1 != NULL)
     { // Si le maillon existe

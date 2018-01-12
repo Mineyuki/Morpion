@@ -179,6 +179,7 @@ uint8_t random_ball(board *);
 void rotation_configuration(board *);
 void copy_row(board *, uint8_t *, uint8_t, uint8_t);
 void set_square_rotation(board *, uint8_t *, uint8_t, uint8_t);
+void symetry_configuration(board *);
 
 // Intelligence artificielle
 hash_table *create_ai();
