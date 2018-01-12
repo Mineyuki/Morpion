@@ -156,6 +156,7 @@ void destroy_stack(stack *);
 hash_table *new_hash_table();
 void clear_hash_table(hash_table *);
 uint32_t convert_board(board *);
+void convert_base_three(board *, uint32_t);
 void add_head_hash_table(hash_table *, uint8_t, chain *);
 chain *search_chain(hash_table *, uint8_t, uint32_t, uint32_t *);
 

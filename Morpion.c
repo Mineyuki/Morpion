@@ -930,7 +930,7 @@ void clear_hash_table(hash_table *hash_table1)
 }
 
 /*
- * Fonction qui convertie le plateau en base 3
+ * Fonction qui convertie le plateau en base 10
  */
 uint32_t convert_board(board *board1)
 {
@@ -939,11 +939,26 @@ uint32_t convert_board(board *board1)
     uint32_t configuration = 0; // Configuration du plateau
 
     for(index = 0; index < board1->size; index++)
-    { // Calcul de la configuration en passant de la base 10 a la base 3
+    { // Calcul de la configuration en passant de la base 3 a la base 10
         configuration = (uint32_t) (board1->table[index] * pow(3, power) + configuration);
+        power -= 1;
     }
 
     return configuration; // Retourne la configuration
+}
+
+/*
+ * Fonction qui convertie le plateau en base 3
+ */
+void convert_base_three(board *board1, uint32_t number)
+{
+    int8_t index;
+
+    for(index = (int8_t) (board1->size - 1); index >= 0; index--)
+    {
+        board1->table[index] = (uint8_t) (number%3);
+        number = (uint32_t) number/3;
+    }
 }
 
 /*
