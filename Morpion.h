@@ -173,4 +173,6 @@ void delete_element(board *, uint8_t);
 void add_element(board *, uint8_t, uint8_t);
 void result_game(hash_table *, stack *, uint8_t);
 
+void print_board_ball(board *);
+
 #endif

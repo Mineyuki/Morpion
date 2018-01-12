@@ -510,6 +510,7 @@ void auto_play_ai(game *game1, hash_table *hash_table1, stack *stack1, stack *st
         stack2 = stack_temp;
 
         state = state_game(game1->tray); // Etat du jeu
+        print_board(game1->tray);
     }while(state == EMPTY); // On continue si la partie n'a pas trouve de gagnant ou d'egalite
 
     switch (state)
@@ -1085,23 +1086,25 @@ hash_table *create_ai()
  */
 void play_ai(hash_table *hash_table1, stack *stack1, board *board1, uint8_t value)
 {
+    board *board_ball;
     uint8_t number_ball_remained = number_ball(board1),
             index = 0,
             index_ball;
     uint32_t configuration = convert_board(board1),
             index_list = 0;
 
-    if(number_ball_remained != 0) {
+    if(number_ball_remained != 0)
+    {
         // Cherche le maillon correspondant a la configuration
         chain *chain1 = search_chain(hash_table1, number_ball_remained, configuration, &index_list);
 
         if (chain1 == NULL)
         { // Si le maillon n'existe pas
-            board *board_ball = create_board(number_ball_remained); // Creation d'un tableau contenant les billes
             chain1 = new_chain(); // On cree un nouveau maillon
 
             for (index = 0; index < ROTATION; index++)
             {
+                board_ball = create_board(number_ball_remained); // Creation d'un tableau contenant les billes
                 fill_ball_board(board1, board_ball); // Rempli le tableau de billes
                 chain1->table_ball[index] = board_ball; // On affecte le tableau de billes dans le tableau
                 chain1->table_configuration[index] = configuration; // On affecte la configuration dans le tableau
@@ -1138,6 +1141,7 @@ void play_ai(hash_table *hash_table1, stack *stack1, board *board1, uint8_t valu
  */
 void delete_element(board *board_ball, uint8_t ball)
 {
+    print_board_ball(board_ball);
     uint8_t counter = 0, index1 = 0, index2 = 0;
     uint8_t *table = malloc((board_ball->size-1) * sizeof(uint8_t)); // Alloue un tableau d'un element en moins
     if(table == NULL)
@@ -1163,6 +1167,7 @@ void delete_element(board *board_ball, uint8_t ball)
 
     board_ball->table = table;
     board_ball->size -= 1;
+    print_board_ball(board_ball);
 }
 
 /*
@@ -1178,12 +1183,9 @@ void add_element(board *board_ball, uint8_t ball, uint8_t number)
         exit(EXIT_FAILURE);
     }
 
-    for(index = 0; index < board_ball->size; index++)
-    { // Parcours des tableaux
-        table[index] = board_ball->table[index]; // Copie
-    }
-
-    free(board_ball->table); // Liberation de la memoire de l'ancienne grille
+    // Copie le contenu du tableau de billes dans un nouveau tableau plus grand
+    memcpy(table, board_ball->table, board_ball->size);
+    index = board_ball->size; // Indice maximale de l'ancien tableau
     board_ball->size = board_ball->size + number; // Aggrandissement de la taille
 
     while(index < board_ball->size)
@@ -1236,4 +1238,15 @@ void result_game(hash_table *hash_table1, stack *stack1, uint8_t result)
                 break;
         }
     }
+}
+
+void print_board_ball(board *board_ball)
+{
+    uint8_t index;
+    printf("Board ball size : %hhu\n", board_ball->size);
+    for(index = 0; index < board_ball->size; index++)
+    {
+        printf("[%hhu]", board_ball->table[index]);
+    }
+    printf("\n");
 }
