@@ -1117,12 +1117,30 @@ void play_ai(hash_table *hash_table1, stack *stack1, board *board1, uint8_t valu
     // Cherche le maillon correspondant a la configuration
     chain *chain1 = search_chain(hash_table1, number_ball_remained, configuration, &index_list);
 
-    if(chain1 != NULL && chain1->table_configuration[0] == 0 && chain1->table_ball[0]->size == 0)
+    if(chain1 != NULL)
     {
-        free(chain1->table_ball); // Liberer la memoire du tableau de billes
-        free(chain1->table_configuration);
-        free(chain1);
-        chain1 = NULL;
+        for (index = 0; index < chain1->size; index++)
+        { // On parcourt le tableau de configuration qui contient toutes les rotations
+            if (chain1->table_configuration[index] == configuration)
+            { // Si on atteind l'indice qui contient la configuration
+                break; // On sort de la boucle for
+            }
+        }
+
+        if(chain1->table_ball[index]->size == 0)
+        {
+            for(index = 0; index < chain1->size; index++)
+            { // Parcours chaque indice du tableau de billes
+                if(chain1->table_ball[index]!=NULL)
+                { // Detruit le plateau de billes
+                    destroy_board(chain1->table_ball[index]);
+                }
+            }
+            free(chain1->table_ball); // Liberer la memoire du tableau de billes
+            free(chain1->table_configuration);
+            free(chain1);
+            chain1 = NULL;
+        }
     }
 
     if (chain1 == NULL)
