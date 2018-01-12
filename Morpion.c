@@ -434,7 +434,7 @@ void play(game *game1, hash_table *hash_table1, stack *stack1)
     { // Tant que le jeu n'est pas termine. Il faut que les cases ne soient pas vides.
         print_board(game1->tray); // Affichage du plateau
 
-        if(game1->current_player == game1->player2)
+        if(game1->current_player->shape == game1->player2->shape)
         { // Si c'est au tour de l'utilisateur
             turn_current_player(game1); // Tour du joueur courant
             change_current_player(game1); // Changement de joueur
@@ -492,52 +492,34 @@ void play(game *game1, hash_table *hash_table1, stack *stack1)
 void auto_play_ai(game *game1, hash_table *hash_table1, stack *stack1, stack *stack2)
 {
     uint8_t state; // Etat du jeu
-    uint8_t shape = game1->current_player->shape; // On stocke la premiere forme joue
-    stack *stack_temp;
 
+    printf("Begin\n");
     do
     {
-        // On attribut pour la premiere intelligence artificielle le stack 1
-        play_ai(hash_table1, stack1, game1->tray, game1->current_player->shape); // Jeu de l'intelligence artificielle
-        change_current_player(game1); // Changement de joueur
-
-        state = state_game(game1->tray); // Etat du jeu
-        if(state != EMPTY)
-        {
-            break;
+        if(game1->current_player->shape == game1->player1->shape)
+        { // Jeu actuel : intelligence artificielle ROND
+            play_ai(hash_table1, stack1, game1->tray, game1->current_player->shape);
         }
-
-        play_ai(hash_table1, stack2, game1->tray, game1->current_player->shape); // Jeu de l'intelligence artificielle
+        else
+        { // Jeu actuel : intelligence artificielle CROIX
+            play_ai(hash_table1, stack2, game1->tray, game1->current_player->shape);
+        }
         change_current_player(game1); // Changement de joueur
-
         state = state_game(game1->tray); // Etat du jeu
     }while(state == EMPTY); // On continue si la partie n'a pas trouve de gagnant ou d'egalite
+
+    printf("End\n");
+    print_board(game1->tray);
 
     switch (state)
     { // Resultat du jeu
         case ROUND : // Rond gagne
-            if(shape == ROUND)
-            { // Si la premiere intelligence artificielle de depart est rond
-                result_game(hash_table1, stack1, WIN); // La premiere a gagne
-                result_game(hash_table1, stack2, LOSE); // Le second a perdu
-            }
-            else
-            { // Si la premiere intelligence artificielle de depart est croix
-                result_game(hash_table1, stack2, WIN); // La seconde a gagne
-                result_game(hash_table1, stack1, LOSE); // La premiere a perdu
-            }
+            result_game(hash_table1, stack1, WIN); // stack1 = ROND
+            result_game(hash_table1, stack2, LOSE); // stack2 = CROIX
             break;
         case CROSS : // Croix gagne
-            if(shape == CROSS)
-            { // Si la premiere intelligence artificielle de depart est croix
-                result_game(hash_table1, stack1, WIN); // La premiere a gagne
-                result_game(hash_table1, stack2, LOSE); // Le second a perdu
-            }
-            else
-            { // Si la premiere intelligence artificielle de depart est rond
-                result_game(hash_table1, stack2, WIN);
-                result_game(hash_table1, stack1, LOSE);
-            }
+            result_game(hash_table1, stack2, WIN);
+            result_game(hash_table1, stack1, LOSE);
             break;
         case DRAW : // Egalite
             result_game(hash_table1, stack1, DRAW);
@@ -1117,8 +1099,10 @@ void play_ai(hash_table *hash_table1, stack *stack1, board *board1, uint8_t valu
     // Cherche le maillon correspondant a la configuration
     chain *chain1 = search_chain(hash_table1, number_ball_remained, configuration, &index_list);
 
+    printf("Number ball : %hhu\n", number_ball_remained);
+
     if(chain1 != NULL)
-    {
+    { // Si le maillon existe
         for (index = 0; index < chain1->size; index++)
         { // On parcourt le tableau de configuration qui contient toutes les rotations
             if (chain1->table_configuration[index] == configuration)
@@ -1127,24 +1111,29 @@ void play_ai(hash_table *hash_table1, stack *stack1, board *board1, uint8_t valu
             }
         }
 
-        if(chain1->table_ball[index]->size == 0)
+        if (chain1->table_ball[index]->size == 0)
         {
-            for(index = 0; index < chain1->size; index++)
-            { // Parcours chaque indice du tableau de billes
-                if(chain1->table_ball[index]!=NULL)
-                { // Detruit le plateau de billes
-                    destroy_board(chain1->table_ball[index]);
-                }
-            }
-            free(chain1->table_ball); // Liberer la memoire du tableau de billes
-            free(chain1->table_configuration);
-            free(chain1);
-            chain1 = NULL;
+            chain1->table_ball[index]->size = number_ball_remained;
+            fill_ball_board(board1, chain1->table_ball[index]); // Rempli le tableau de billes
+            ball = random_ball(chain1->table_ball[index]); // Prend au hasard une bille de couleur
+            // Place en tete de pile la configuration et la bille utilise
+            push(stack1, number_ball_remained, index_list, index_table_ball, ball);
+            board1->table[ball] = value; // Place le pion sur la grille de morpion
+            return;
         }
+        index_table_ball = index;
+        ball = random_ball(chain1->table_ball[index]); // Prend au hasard une bille de couleur
     }
 
     if (chain1 == NULL)
     { // Si le maillon n'existe pas
+        if(number_ball_remained == board1->size)
+        {
+            ball = random_ball(board1);
+            board1->table[ball] = value; // Place le pion sur la grille de morpion
+            return;
+        }
+
         chain1 = new_chain(); // On cree un nouveau maillon
 
         for (index = 0; index < ROTATION; index++)
@@ -1166,18 +1155,6 @@ void play_ai(hash_table *hash_table1, stack *stack1, board *board1, uint8_t valu
         // Ajoute en tete de liste dans la table de hashage
         add_head_hash_table(hash_table1, number_ball_remained, chain1);
         ball = random_ball(board_ball); // Prend au hasard une bille de couleur
-    }
-    else
-    { // Si le maillon existe
-        for (index = 0; index < chain1->size; index++)
-        { // On parcourt le tableau de configuration qui contient toutes les rotations
-            if (chain1->table_configuration[index] == configuration)
-            { // Si on atteind l'indice qui contient la configuration
-                break; // On sort de la boucle for
-            }
-        }
-        index_table_ball = index;
-        ball = random_ball(chain1->table_ball[index]); // Prend au hasard une bille de couleur
     }
 
     // Place en tete de pile la configuration et la bille utilise

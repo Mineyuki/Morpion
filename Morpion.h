@@ -100,7 +100,7 @@ typedef enum
 
 typedef enum
 { // Differents etats du menu
-    QUIT, CREATE, CPU_ONLY, ANOTHER
+    QUIT, CREATE, CPU_ONLY
 }STATE_MENU;
 
 typedef enum
@@ -110,6 +110,7 @@ typedef enum
 
 void color_printf(COLOR_TERMINAL, COLOR_TERMINAL, const char *, ...);
 
+// Plateau
 board *create_board(uint8_t);
 void destroy_board(board *);
 void reset_board(board *);
@@ -118,28 +119,34 @@ void set_square(board *, uint8_t, uint8_t, uint8_t);
 _Bool index_valid(board *, uint8_t);
 _Bool empty_square(board *, uint8_t, uint8_t);
 
+// Joueur
 player *create_player();
 void change_player_name(player *, char *);
 
+// Jeu
 game *create_game();
 void destroy_game(game *);
 void player_random(game *);
 void change_current_player(game *);
 
+// Etat du jeu
 uint8_t state_game(board *);
 uint8_t search_diagonal_left(board *, uint8_t, uint8_t, uint8_t, uint8_t);
 uint8_t search_diagonal_right(board *, uint8_t, uint8_t, uint8_t, uint8_t);
 uint8_t search_row(board *, uint8_t, uint8_t, uint8_t, uint8_t);
 uint8_t search_column(board *, uint8_t, uint8_t, uint8_t, uint8_t);
 
+// Cours de la partie
 void capture_player(uint8_t *);
 void turn_current_player(game *);
 void play(game *, hash_table *, stack *);
 void auto_play_ai(game *, hash_table *, stack *, stack *);
-void print_board(board *);
 
+// Systemes
+void print_board(board *);
 void menu(game *);
 
+// Listes
 chain *new_chain();
 list *new_list();
 _Bool is_empty(list *);
@@ -148,12 +155,14 @@ void remove_head(list *);
 chain *find_chain(list *, uint32_t);
 void clear_list(list *);
 
+// Piles
 chain_stack *new_chain_stack(uint8_t, uint32_t, uint8_t, uint8_t);
 stack *new_stack();
 void push(stack *, uint8_t, uint32_t, uint8_t, uint8_t);
 current_play pop(stack *);
 void destroy_stack(stack *);
 
+// Table de hashage
 hash_table *new_hash_table();
 void clear_hash_table(hash_table *);
 uint32_t convert_board(board *);
@@ -161,14 +170,17 @@ void convert_base_three(board *, uint32_t);
 void add_head_hash_table(hash_table *, uint8_t, chain *);
 chain *search_chain(hash_table *, uint8_t, uint32_t, uint32_t *);
 
+// Billes
 uint8_t number_ball(board *);
 void fill_ball_board(board *, board *);
 uint8_t random_ball(board *);
 
+// Rotation et symetrie
 void rotation_configuration(board *);
 void copy_row(board *, uint8_t *, uint8_t, uint8_t);
 void set_square_rotation(board *, uint8_t *, uint8_t, uint8_t);
 
+// Intelligence artificielle
 hash_table *create_ai();
 void play_ai(hash_table *, stack *, board *, uint8_t);
 void delete_element(board *, uint8_t);
