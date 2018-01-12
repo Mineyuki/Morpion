@@ -77,6 +77,7 @@ typedef struct
 {
     uint8_t index_hash_table;
     uint32_t index_list;
+    uint8_t index_table_ball;
     uint8_t ball;
 }current_play;
 
@@ -147,9 +148,9 @@ void remove_head(list *);
 chain *find_chain(list *, uint32_t);
 void clear_list(list *);
 
-chain_stack *new_chain_stack(uint8_t, uint32_t, uint8_t);
+chain_stack *new_chain_stack(uint8_t, uint32_t, uint8_t, uint8_t);
 stack *new_stack();
-void push(stack *, uint8_t, uint32_t, uint8_t);
+void push(stack *, uint8_t, uint32_t, uint8_t, uint8_t);
 current_play pop(stack *);
 void destroy_stack(stack *);
 
@@ -173,7 +174,5 @@ void play_ai(hash_table *, stack *, board *, uint8_t);
 void delete_element(board *, uint8_t);
 void add_element(board *, uint8_t, uint8_t);
 void result_game(hash_table *, stack *, uint8_t);
-
-void print_board_ball(board *);
 
 #endif

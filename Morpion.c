@@ -170,14 +170,10 @@ void player_random(game *game1)
 {
     if(rand()%2 == 1)
     {
-        game1->player1->shape = CROSS;
-        game1->player2->shape = ROUND;
         game1->current_player = game1->player1;
     }
     else
     {
-        game1->player1->shape = ROUND;
-        game1->player2->shape = CROSS;
         game1->current_player = game1->player2;
     }
 }
@@ -505,12 +501,16 @@ void auto_play_ai(game *game1, hash_table *hash_table1, stack *stack1, stack *st
         play_ai(hash_table1, stack1, game1->tray, game1->current_player->shape); // Jeu de l'intelligence artificielle
         change_current_player(game1); // Changement de joueur
 
-        stack_temp = stack1;
-        stack1 = stack2;
-        stack2 = stack_temp;
+        state = state_game(game1->tray); // Etat du jeu
+        if(state != EMPTY)
+        {
+            break;
+        }
+
+        play_ai(hash_table1, stack2, game1->tray, game1->current_player->shape); // Jeu de l'intelligence artificielle
+        change_current_player(game1); // Changement de joueur
 
         state = state_game(game1->tray); // Etat du jeu
-        print_board(game1->tray);
     }while(state == EMPTY); // On continue si la partie n'a pas trouve de gagnant ou d'egalite
 
     switch (state)
@@ -615,6 +615,8 @@ void menu(game *game1)
                 { // Si le jeu n'existe pas
                     game1 = create_game(); // Creation du jeu
                     change_player_name(game1->player1, CPU); // Change le nom du joueur
+                    game1->player1->shape = ROUND;
+                    game1->player2->shape = CROSS;
                 }
                 else
                 { // Si le jeu existe, inutile de recreer par dessus un autre jeu
@@ -638,6 +640,8 @@ void menu(game *game1)
                 { // Si le jeu n'existe pas, on cree le jeu
                     game1 = create_game(); // Creation du jeu
                     change_player_name(game1->player1, CPU); // Change le nom du premier joueur
+                    game1->player1->shape = ROUND;
+                    game1->player2->shape = CROSS;
                 }
                 else
                 { // Si le jeu existe deja
@@ -811,7 +815,7 @@ void clear_list(list *list1)
 /*
  * Creation d'un nouveau maillon de pile
  */
-chain_stack *new_chain_stack(uint8_t index_hash_table, uint32_t index_list, uint8_t ball)
+chain_stack *new_chain_stack(uint8_t index_hash_table, uint32_t index_list, uint8_t index_table_ball, uint8_t ball)
 {
     chain_stack *chain_stack1 = malloc(sizeof(chain_stack)); // Reserver une place pour le maillon de pile
     if(chain_stack1 == NULL)
@@ -822,6 +826,7 @@ chain_stack *new_chain_stack(uint8_t index_hash_table, uint32_t index_list, uint
 
     chain_stack1->current.index_hash_table = index_hash_table;
     chain_stack1->current.index_list = index_list;
+    chain_stack1->current.index_table_ball = index_table_ball;
     chain_stack1->current.ball = ball;
 
     return chain_stack1;
@@ -845,9 +850,9 @@ stack *new_stack()
 /*
  * Mettre un maillon dans la pile
  */
-void push(stack *stack1, uint8_t index_hash_table, uint32_t index_list, uint8_t ball)
+void push(stack *stack1, uint8_t index_hash_table, uint32_t index_list, uint8_t index_table_ball, uint8_t ball)
 {
-    chain_stack *chain1 = new_chain_stack(index_hash_table, index_list, ball); // Nouveau maillon
+    chain_stack *chain1 = new_chain_stack(index_hash_table, index_list, index_table_ball, ball); // Nouveau maillon
     chain1->next = stack1->head; // Le suivant du nouveau maillon est la tete de pile
     stack1->head = chain1; // La nouvelle tete de liste est le nouveau maillon
     stack1->size += 1; // Taille de la pile augmente de 1
@@ -1104,51 +1109,63 @@ void play_ai(hash_table *hash_table1, stack *stack1, board *board1, uint8_t valu
     board *board_ball;
     uint8_t number_ball_remained = number_ball(board1),
             index = 0,
-            index_ball;
+            index_table_ball = 0,
+            ball;
     uint32_t configuration = convert_board(board1),
             index_list = 0;
 
-    if(number_ball_remained != 0)
+    // Cherche le maillon correspondant a la configuration
+    chain *chain1 = search_chain(hash_table1, number_ball_remained, configuration, &index_list);
+
+    if(chain1 != NULL && chain1->table_configuration[0] == 0 && chain1->table_ball[0]->size == 0)
     {
-        // Cherche le maillon correspondant a la configuration
-        chain *chain1 = search_chain(hash_table1, number_ball_remained, configuration, &index_list);
-
-        if (chain1 == NULL)
-        { // Si le maillon n'existe pas
-            chain1 = new_chain(); // On cree un nouveau maillon
-
-            for (index = 0; index < ROTATION; index++)
-            {
-                board_ball = create_board(number_ball_remained); // Creation d'un tableau contenant les billes
-                fill_ball_board(board1, board_ball); // Rempli le tableau de billes
-                chain1->table_ball[index] = board_ball; // On affecte le tableau de billes dans le tableau
-                chain1->table_configuration[index] = configuration; // On affecte la configuration dans le tableau
-                rotation_configuration(board1); // On tourne a 90 degres la configuration
-                configuration = convert_board(board1); // On convertit le plateau en base 3
-            }
-
-            fill_ball_board(board1, board_ball); // Rempli le tableau de billes
-
-            // Ajoute en tete de liste dans la table de hashage
-            add_head_hash_table(hash_table1, number_ball_remained, chain1);
-            index_ball = random_ball(board_ball); // Prend au hasard une bille de couleur
-        }
-        else
-        { // Si le maillon existe
-            for (index = 0; index < chain1->size; index++)
-            { // On parcourt le tableau de configuration qui contient toutes les rotations
-                if (chain1->table_configuration[index] == configuration)
-                { // Si on atteind l'indice qui contient la configuration
-                    break; // On sort de la boucle for
-                }
-            }
-            index_ball = random_ball(chain1->table_ball[index]); // Prend au hasard une bille de couleur
-        }
-
-        // Place en tete de pile la configuration et la bille utilise
-        push(stack1, number_ball_remained, index_list, index_ball);
-        board1->table[index_ball] = value; // Place le pion sur la grille de morpion
+        free(chain1->table_ball); // Liberer la memoire du tableau de billes
+        free(chain1->table_configuration);
+        free(chain1);
+        chain1 = NULL;
     }
+
+    if (chain1 == NULL)
+    { // Si le maillon n'existe pas
+        chain1 = new_chain(); // On cree un nouveau maillon
+
+        for (index = 0; index < ROTATION; index++)
+        {
+            board_ball = create_board(number_ball_remained); // Creation d'un tableau contenant les billes
+            fill_ball_board(board1, board_ball); // Rempli le tableau de billes
+            chain1->table_ball[index] = board_ball; // On affecte le tableau de billes dans le tableau
+            chain1->table_configuration[index] = configuration; // On affecte la configuration dans le tableau
+            rotation_configuration(board1); // On tourne a 90 degres la configuration
+            configuration = convert_board(board1); // On convertit le plateau en base 3
+            if(chain1->table_configuration[index] == configuration)
+            {
+                break;
+            }
+        }
+
+        fill_ball_board(board1, board_ball); // Rempli le tableau de billes
+
+        // Ajoute en tete de liste dans la table de hashage
+        add_head_hash_table(hash_table1, number_ball_remained, chain1);
+        ball = random_ball(board_ball); // Prend au hasard une bille de couleur
+    }
+    else
+    { // Si le maillon existe
+        for (index = 0; index < chain1->size; index++)
+        { // On parcourt le tableau de configuration qui contient toutes les rotations
+            if (chain1->table_configuration[index] == configuration)
+            { // Si on atteind l'indice qui contient la configuration
+                break; // On sort de la boucle for
+            }
+        }
+        index_table_ball = index;
+        ball = random_ball(chain1->table_ball[index]); // Prend au hasard une bille de couleur
+    }
+
+    // Place en tete de pile la configuration et la bille utilise
+    push(stack1, number_ball_remained, index_list, index_table_ball, ball);
+    board1->table[ball] = value; // Place le pion sur la grille de morpion
+
 }
 
 /*
@@ -1156,33 +1173,34 @@ void play_ai(hash_table *hash_table1, stack *stack1, board *board1, uint8_t valu
  */
 void delete_element(board *board_ball, uint8_t ball)
 {
-    print_board_ball(board_ball);
-    uint8_t counter = 0, index1 = 0, index2 = 0;
-    uint8_t *table = malloc((board_ball->size-1) * sizeof(uint8_t)); // Alloue un tableau d'un element en moins
-    if(table == NULL)
-    { // Erreur allocation
-        printf("Erreur : impossible d'allouer une grille plus petite.\n");
-        exit(EXIT_FAILURE);
-    }
-
-    while(index1 < board_ball->size-1)
-    { // Parcours du nouveau tableau
-        if(counter == 0 && board_ball->table[index2] == ball)
-        { // Si on trouve l'element une fois
-            counter += 1; // On incremente le compteur pour passer a l'element suivant
-            index2 += 1; // Passe a l'element suivant
+    if(board_ball->size != 0 )
+    { // On retire que lorsque c'est possible de retirer
+        uint8_t counter = 0, index1 = 0, index2 = 0;
+        uint8_t *table = malloc((board_ball->size-1) * sizeof(uint8_t)); // Alloue un tableau d'un element en moins
+        if(table == NULL)
+        { // Erreur allocation
+            printf("Erreur : impossible d'allouer une grille plus petite.\n");
+            exit(EXIT_FAILURE);
         }
 
-        table[index1] = board_ball->table[index2]; // Recopie dans le nouveau tableau
-        index2 += 1; // Incremente l'indice de l'ancien tableau
-        index1 += 1; // Incremente l'indice du nouveau tableau
+        while(index1 < board_ball->size-1)
+        { // Parcours du nouveau tableau
+            if(counter == 0 && board_ball->table[index2] == ball)
+            { // Si on trouve l'element une fois
+                counter += 1; // On incremente le compteur pour passer a l'element suivant
+                index2 += 1; // Passe a l'element suivant
+            }
+
+            table[index1] = board_ball->table[index2]; // Recopie dans le nouveau tableau
+            index2 += 1; // Incremente l'indice de l'ancien tableau
+            index1 += 1; // Incremente l'indice du nouveau tableau
+        }
+
+        free(board_ball->table); // Liberer memoire de l'ancien tableau
+
+        board_ball->table = table;
+        board_ball->size -= 1;
     }
-
-    free(board_ball->table); // Liberer memoire de l'ancien tableau
-
-    board_ball->table = table;
-    board_ball->size -= 1;
-    print_board_ball(board_ball);
 }
 
 /*
@@ -1190,26 +1208,27 @@ void delete_element(board *board_ball, uint8_t ball)
  */
 void add_element(board *board_ball, uint8_t ball, uint8_t number)
 {
-    uint8_t index;
-    uint8_t *table = malloc((board_ball->size+number) * sizeof(uint8_t));
-    if(table == NULL)
-    { // Erreur allocation
-        printf("Erreur : impossible d'allouer une grille plus grande.\n");
-        exit(EXIT_FAILURE);
+    if(board_ball->size < 255)
+    {
+        uint8_t index;
+        uint8_t *table = malloc((board_ball->size + number) * sizeof(uint8_t));
+        if (table == NULL) { // Erreur allocation
+            printf("Erreur : impossible d'allouer une grille plus grande.\n");
+            exit(EXIT_FAILURE);
+        }
+
+        // Copie le contenu du tableau de billes dans un nouveau tableau plus grand
+        memcpy(table, board_ball->table, board_ball->size);
+        index = board_ball->size; // Indice maximale de l'ancien tableau
+        board_ball->size = board_ball->size + number; // Aggrandissement de la taille
+
+        while (index < board_ball->size) { // Parcours du nouveau tableau
+            table[index] = ball; // Ajout en fin des balles
+            index += 1;
+        }
+
+        board_ball->table = table;
     }
-
-    // Copie le contenu du tableau de billes dans un nouveau tableau plus grand
-    memcpy(table, board_ball->table, board_ball->size);
-    index = board_ball->size; // Indice maximale de l'ancien tableau
-    board_ball->size = board_ball->size + number; // Aggrandissement de la taille
-
-    while(index < board_ball->size)
-    { // Parcours du nouveau tableau
-        table[index] = ball; // Ajout en fin des balles
-        index += 1;
-    }
-
-    board_ball->table = table;
 }
 
 /*
@@ -1221,7 +1240,7 @@ void result_game(hash_table *hash_table1, stack *stack1, uint8_t result)
     current_play current_play1;
     chain *chain1;
 
-    while(stack1->size != 0)
+    while(stack1->size > 0)
     { // Tant que la taille n'a pas atteint 0
         current_play1 = pop(stack1); // Recupere le maillon en tete de pile
         chain1 = find_chain(hash_table1->table[current_play1.index_hash_table], current_play1.index_list);
@@ -1229,39 +1248,19 @@ void result_game(hash_table *hash_table1, stack *stack1, uint8_t result)
         switch (result)
         { // Selon l'IA a gagne ou non
             case LOSE : // Supprime element
-                for(index = 0; index < chain1->size; index++)
-                {
-                    delete_element(chain1->table_ball[index], current_play1.ball);
-                }
+                delete_element(chain1->table_ball[current_play1.index_table_ball], current_play1.ball);
                 chain1->state = LOSE;
                 break;
             case WIN : // Ajoute 3 boules de meme couleur
-                for(index = 0; index < chain1->size; index++)
-                {
-                    add_element(chain1->table_ball[index], current_play1.ball, 3);
-                }
+                add_element(chain1->table_ball[current_play1.index_table_ball], current_play1.ball, 3);
                 chain1->state = WIN;
                 break;
             case DRAW : // Ajoute 1 boule de meme couleur
-                for(index = 0; index < chain1->size; index++)
-                {
-                    add_element(chain1->table_ball[index], current_play1.ball, 1);
-                }
+                add_element(chain1->table_ball[current_play1.index_table_ball], current_play1.ball, 1);
                 chain1->state = DRAW;
                 break;
             default :
                 break;
         }
     }
-}
-
-void print_board_ball(board *board_ball)
-{
-    uint8_t index;
-    printf("Board ball size : %hhu\n", board_ball->size);
-    for(index = 0; index < board_ball->size; index++)
-    {
-        printf("[%hhu]", board_ball->table[index]);
-    }
-    printf("\n");
 }
