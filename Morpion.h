@@ -180,10 +180,12 @@ void rotation_configuration(board *);
 void copy_row(board *, uint8_t *, uint8_t, uint8_t);
 void set_square_rotation(board *, uint8_t *, uint8_t, uint8_t);
 void symetry_configuration(board *);
+uint8_t rotation_ball(uint8_t);
 
 // Intelligence artificielle
 hash_table *create_ai();
 void play_ai(hash_table *, stack *, board *, uint8_t);
+void reset_ball_chain(board *, chain *, uint8_t, uint8_t);
 void print_ball(board *);
 void delete_element(board *, uint8_t);
 void add_element(board *, uint8_t, uint8_t);

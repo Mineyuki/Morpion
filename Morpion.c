@@ -451,12 +451,22 @@ void play(game *game1, hash_table *hash_table1, stack *stack1)
                 return;
             }
             change_current_player(game1); // Changement de joueur
+            state = state_game(game1->tray); // Etat du jeu
+            if(state != NULL)
+            {
+                break;
+            }
             play_ai(hash_table1, stack1, game1->tray, game1->current_player->shape); // Tour de l'intelligence artificielle
         }
         else
         { // Si c'est au tour de l'ordinateur
             play_ai(hash_table1, stack1, game1->tray, game1->current_player->shape); // Tour de l'intelligence artificielle
             change_current_player(game1); // Changement de joueur
+            state = state_game(game1->tray); // Etat du jeu
+            if(state != NULL)
+            {
+                break;
+            }
             print_board(game1->tray); // Affichage du plateau
             printf("Code pour revenir au menu : 255\n");
             turn_current_player(game1, &code); // Tour du joueur courant
@@ -1137,6 +1147,27 @@ void symetry_configuration(board *board1)
 }
 
 /*
+ * Rotation de la bille
+ */
+uint8_t rotation_ball(uint8_t ball)
+{
+    uint8_t index;
+    board *board_ball = create_board(SIZE*SIZE);
+
+    board_ball->table[ball] = CROSS;
+    rotation_configuration(board_ball);
+
+    for(index = 0; index < board_ball->size; index++)
+    {
+        if(board_ball->table[index] == CROSS)
+        {
+            destroy_board(board_ball);
+            return index;
+        }
+    }
+}
+
+/*
  * Copie la ligne du plateau dans un tableau
  */
 void copy_row(board *board1, uint8_t *row, uint8_t index_row, uint8_t column)
@@ -1175,15 +1206,18 @@ void play_ai(hash_table *hash_table1, stack *stack1, board *board1, uint8_t valu
     uint8_t number_ball_remained = number_ball(board1),
             index = 0,
             index_table_ball = 0,
-            ball;
+            ball,
+            count = 0;
     uint32_t configuration = convert_board(board1),
             index_list = 0;
 
     // Cherche le maillon correspondant a la configuration
     chain *chain1 = search_chain(hash_table1, number_ball_remained, configuration, &index_list);
 
+
     if(chain1 != NULL)
     { // Si le maillon existe
+
         for (index = 0; index < chain1->size; index++)
         { // On parcourt le tableau de configuration qui contient toutes les rotations
             if (chain1->table_configuration[index] == configuration)
@@ -1194,18 +1228,32 @@ void play_ai(hash_table *hash_table1, stack *stack1, board *board1, uint8_t valu
 
         if (chain1->table_ball[index]->size == 0)
         {
-            print_ball(chain1->table_ball[index]);
-            chain1->table_ball[index]->size = number_ball_remained;
-            fill_ball_board(board1, chain1->table_ball[index]); // Rempli le tableau de billes
-            ball = random_ball(chain1->table_ball[index]); // Prend au hasard une bille de couleur
+            reset_ball_chain(board1, chain1, index, number_ball_remained);
+            do
+            {// Prend au hasard une bille de couleur
+                ball = random_ball(chain1->table_ball[index]);
+                count += 1;
+                if(count > 10)
+                {
+                    reset_ball_chain(board1, chain1, index, number_ball_remained);
+                }
+            }while(board1->table[ball] != EMPTY);
             // Place en tete de pile la configuration et la bille utilise
             push(stack1, number_ball_remained, index_list, index_table_ball, ball);
             board1->table[ball] = value; // Place le pion sur la grille de morpion
-            print_ball(chain1->table_ball[index]);
             return;
         }
         index_table_ball = index;
-        ball = random_ball(chain1->table_ball[index]); // Prend au hasard une bille de couleur
+
+        do
+        { // Prend au hasard une bille de couleur
+            ball = random_ball(chain1->table_ball[index]);
+            count += 1;
+            if(count > 10)
+            {
+                reset_ball_chain(board1, chain1, index, number_ball_remained);
+            }
+        }while(board1->table[ball] != EMPTY);
     }
 
     if (chain1 == NULL)
@@ -1237,13 +1285,20 @@ void play_ai(hash_table *hash_table1, stack *stack1, board *board1, uint8_t valu
 
         // Ajoute en tete de liste dans la table de hashage
         add_head_hash_table(hash_table1, number_ball_remained, chain1);
-        ball = random_ball(board_ball); // Prend au hasard une bille de couleur
+        // Prend au hasard une bille de couleur
+        ball = random_ball(board_ball);
     }
 
     // Place en tete de pile la configuration et la bille utilise
     push(stack1, number_ball_remained, index_list, index_table_ball, ball);
     board1->table[ball] = value; // Place le pion sur la grille de morpion
 
+}
+
+void reset_ball_chain(board *board1, chain *chain1, uint8_t index, uint8_t number_ball_remained)
+{
+    chain1->table_ball[index]->size = number_ball_remained;
+    fill_ball_board(board1, chain1->table_ball[index]); // Rempli le tableau de billes
 }
 
 void print_ball(board *board_ball)
@@ -1261,7 +1316,7 @@ void print_ball(board *board_ball)
  */
 void delete_element(board *board_ball, uint8_t ball)
 {
-    if(board_ball->size != 0 )
+    if(board_ball->size > 1 )
     { // On retire que lorsque c'est possible de retirer
         uint8_t counter = 0, index1 = 0, index2 = 0;
         uint8_t *table = malloc((board_ball->size-1) * sizeof(uint8_t)); // Alloue un tableau d'un element en moins
@@ -1296,7 +1351,7 @@ void delete_element(board *board_ball, uint8_t ball)
  */
 void add_element(board *board_ball, uint8_t ball, uint8_t number)
 {
-    if(board_ball->size < 255)
+    if(board_ball != NULL && board_ball->size < 255)
     {
         uint8_t index;
         uint8_t *table = malloc((board_ball->size + number) * sizeof(uint8_t));
@@ -1324,7 +1379,7 @@ void add_element(board *board_ball, uint8_t ball, uint8_t number)
  */
 void result_game(hash_table *hash_table1, stack *stack1, uint8_t result)
 {
-    uint8_t count = 0;
+    uint8_t count = 0, index;
     current_play current_play1;
     chain *chain1;
 
@@ -1336,23 +1391,57 @@ void result_game(hash_table *hash_table1, stack *stack1, uint8_t result)
         switch (result)
         { // Selon l'IA a gagne ou non
             case LOSE : // Supprime element
-                delete_element(chain1->table_ball[current_play1.index_table_ball], current_play1.ball);
+                for(index = current_play1.index_table_ball; index < chain1->size; index++)
+                { // On parcourt tous le tableau de bille a partir de la position de la configuration jusqu'a la fin
+                    delete_element(chain1->table_ball[index], current_play1.ball);
+                    current_play1.ball = rotation_ball(current_play1.ball); // Rotation de la bille
+                }
+
+                for(index = 0; index < current_play1.index_table_ball; index++)
+                { // On parcourt tous le tableau de bille a partir du debut jusqu'a la position de la configuration
+                    delete_element(chain1->table_ball[index], current_play1.ball);
+                    current_play1.ball = rotation_ball(current_play1.ball); // Rotation de la bille
+                }
+
                 if(count == 0)
-                {
+                { // Si on se trouve sur la derniere configuration de la pile
                     chain1->state = LOSE;
                     count += 1;
                 }
+
                 break;
             case WIN : // Ajoute 3 boules de meme couleur
-                add_element(chain1->table_ball[current_play1.index_table_ball], current_play1.ball, 3);
+                for(index = current_play1.index_table_ball; index < chain1->size; index++)
+                { // On parcourt tous le tableau de bille a partir de la position de la configuration jusqu'a la fin
+                    add_element(chain1->table_ball[index], current_play1.ball, 3);
+                    current_play1.ball = rotation_ball(current_play1.ball); // Rotation de la bille
+                }
+
+                for(index = 0; index < current_play1.index_table_ball; index++)
+                { // On parcourt tous le tableau de bille a partir du debut jusqu'a la position de la configuration
+                    add_element(chain1->table_ball[index], current_play1.ball, 3);
+                    current_play1.ball = rotation_ball(current_play1.ball); // Rotation de la bille
+                }
+
                 if(count == 0)
-                {
+                { // Si on se trouve sur la derniere configuration de la pile
                     chain1->state = WIN;
                     count += 1;
                 }
                 break;
             case DRAW : // Ajoute 1 boule de meme couleur
-                add_element(chain1->table_ball[current_play1.index_table_ball], current_play1.ball, 1);
+                for(index = current_play1.index_table_ball; index < chain1->size; index++)
+                { // On parcourt tous le tableau de bille a partir de la position de la configuration jusqu'a la fin
+                    add_element(chain1->table_ball[index], current_play1.ball, 1);
+                    current_play1.ball = rotation_ball(current_play1.ball); // Rotation de la bille
+                }
+
+                for(index = 0; index < current_play1.index_table_ball; index++)
+                { // On parcourt tous le tableau de bille a partir du debut jusqu'a la position de la configuration
+                    add_element(chain1->table_ball[index], current_play1.ball, 1);
+                    current_play1.ball = rotation_ball(current_play1.ball); // Rotation de la bille
+                }
+
                 if(count == 0)
                 {
                     chain1->state = DRAW;
