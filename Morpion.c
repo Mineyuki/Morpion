@@ -684,7 +684,7 @@ void menu(game *game1)
                 destroy_stack(stack2); // Destruction du stack 2
                 break;
             case CHARGE :
-                file1 = fopen("../game.txt", "rt"); // Ouverture du fichier en lecture
+                file1 = fopen("game.txt", "rt"); // Ouverture du fichier en lecture
                 if(file1 == NULL)
                 { // Si le fichier n'existe pas
                     printf("Erreur : fichier non existant\n");
@@ -1599,7 +1599,7 @@ void save_file(FILE *file1, game *game2, hash_table *hashtable, stack *stack1)
 {
     uint8_t index;
     chain *chain1; // Declare un pointeur de maillon
-    file1 = fopen("../game.txt", "wt+"); // Ouverture du fichier en ecriture
+    file1 = fopen("game.txt", "wt+"); // Ouverture du fichier en ecriture
     if(file1 == NULL)
     { // Si il y a un probleme lors de la creation du fichier
         printf("Erreur lors de l'ouverture du fichier\n");
