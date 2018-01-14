@@ -230,7 +230,6 @@ uint8_t state_game(board *board1)
 
     // Recherche par colonne
     return search_column(board1, row, column, result_round, result_cross);
-
 }
 
 /*
@@ -396,7 +395,7 @@ void capture_player(uint8_t *choice)
 /*
  * Tour du joueur courant
  */
-void turn_current_player(game *game1)
+void turn_current_player(game *game1, uint8_t *code)
 {
     uint8_t row, column;
 
@@ -410,6 +409,11 @@ void turn_current_player(game *game1)
         { // Recupere le numero de ligne
             printf("\n\tChoix de la ligne :");
             capture_player(&row);
+            if(row == 255)
+            {
+                (*code) = 255;
+                return;
+            }
         }while(index_valid(game1->tray, row) == false);
 
 
@@ -417,6 +421,11 @@ void turn_current_player(game *game1)
         { // Recupere le numero de colonne
             printf("\n\tChoix de la colonne :");
             capture_player(&column);
+            if(column == 255)
+            {
+                (*code) = 255;
+                return;
+            }
         }while(index_valid(game1->tray, column) == false);
     }while(empty_square(game1->tray, row, column) == false);
 
@@ -428,14 +437,19 @@ void turn_current_player(game *game1)
  */
 void play(game *game1, hash_table *hash_table1, stack *stack1)
 {
-    uint8_t state;
+    uint8_t state, code = 0;
 
     do
     { // Tant que le jeu n'est pas termine. Il faut que les cases ne soient pas vides.
         if(game1->current_player->shape == game1->player2->shape)
         { // Si c'est au tour de l'utilisateur
             print_board(game1->tray); // Affichage du plateau
-            turn_current_player(game1); // Tour du joueur courant
+            printf("Code pour revenir au menu : 255\n");
+            turn_current_player(game1, &code); // Tour du joueur courant
+            if(code == 255)
+            {
+                return;
+            }
             change_current_player(game1); // Changement de joueur
             play_ai(hash_table1, stack1, game1->tray, game1->current_player->shape); // Tour de l'intelligence artificielle
         }
@@ -444,7 +458,12 @@ void play(game *game1, hash_table *hash_table1, stack *stack1)
             play_ai(hash_table1, stack1, game1->tray, game1->current_player->shape); // Tour de l'intelligence artificielle
             change_current_player(game1); // Changement de joueur
             print_board(game1->tray); // Affichage du plateau
-            turn_current_player(game1); // Tour du joueur courant
+            printf("Code pour revenir au menu : 255\n");
+            turn_current_player(game1, &code); // Tour du joueur courant
+            if(code == 255)
+            {
+                return;
+            }
         }
 
         change_current_player(game1); // Changement de joueur
@@ -493,7 +512,6 @@ void auto_play_ai(game *game1, hash_table *hash_table1, stack *stack1, stack *st
 {
     uint8_t state; // Etat du jeu
 
-    printf("Begin\n");
     do
     {
         if(game1->current_player->shape == game1->player1->shape)
@@ -507,9 +525,6 @@ void auto_play_ai(game *game1, hash_table *hash_table1, stack *stack1, stack *st
         change_current_player(game1); // Changement de joueur
         state = state_game(game1->tray); // Etat du jeu
     }while(state == EMPTY); // On continue si la partie n'a pas trouve de gagnant ou d'egalite
-
-    printf("End\n");
-    print_board(game1->tray);
 
     switch (state)
     { // Resultat du jeu
@@ -579,6 +594,7 @@ void menu(game *game1)
     uint32_t number, step; // Servent pour jouer CPU contre CPU
     hash_table *hash_table1 = NULL; // Intelligence artificielle inexistant
     stack *stack1 = new_stack(); // Pile de la partie
+    FILE *file1 = NULL;
 
     do
     {
@@ -587,8 +603,12 @@ void menu(game *game1)
                        "\t\t* 0 : Quitter le jeu\n"
                        "\t\t* 1 : Commencer une nouvelle partie avec le CPU\n"
                        "\t\t* 2 : Generer un certain nombre de partie avec le CPU\n"
-                       "\t\t* 3 : Sauvegarder les fichiers\n"
-                       "\t\t* 4 : Charger les fichiers\n");
+                       "\t\t* 3 : Charger la sauvegarde\n");
+        if(game1 != NULL)
+        {
+            printf("\t\t* 4 : Sauvegarder la partie\n"
+                           "\t\t* 5 : Reprendre la partie\n");
+        }
 
         capture_player(&choice); // Choix de l'utilisateur
 
@@ -653,9 +673,38 @@ void menu(game *game1)
 
                 destroy_stack(stack2); // Destruction du stack 2
                 break;
+            case CHARGE :
+                file1 = fopen("../game.txt", "rt"); // Ouverture du fichier en lecture
+                if(file1 == NULL)
+                { // Si le fichier n'existe pas
+                    printf("Erreur : fichier non existant\n");
+                }
+                else
+                {
+                    game1 = create_game(); // Creation du jeu
+                    change_player_name(game1->player1, CPU); // Change le nom du joueur
+                    change_player_name(game1->player2, CPU); // Change le nom du deuxieme joueur
+                    game1->player1->shape = ROUND;
+                    game1->player2->shape = CROSS;
+                    hash_table1 = new_hash_table();
+                    charge_file(file1, game1, hash_table1, stack1);
+                    fclose(file1);
+                    play(game1, hash_table1, stack1); // Jouer
+                }
+                break;
             case SAVE :
-                save_file(game1, hash_table1, stack1);
-                break; 
+                if(game1 != NULL)
+                { // Si le jeu existe, on sauvegarde
+                    save_file(file1, game1, hash_table1, stack1);
+                    printf("Partie sauvegarde.\n");
+                }
+                break;
+            case RESUME :
+                if(game1 != NULL)
+                {
+                    play(game1, hash_table1, stack1); // Jouer
+                }
+                break;
             default : // Autre
                 break;
         }
@@ -754,7 +803,10 @@ void remove_head(list *list1)
 
     for(index = 0; index < head_chain->size; index++)
     { // Parcours chaque indice du tableau de billes
-        destroy_board(head_chain->table_ball[index]); // Detruit le plateau de billes
+        if(head_chain->table_ball[index] != NULL)
+        { // Detruit le plateau de billes
+            destroy_board(head_chain->table_ball[index]);
+        }
     }
     free(head_chain->table_ball); // Liberer la memoire du tableau de billes
     free(head_chain->table_configuration); // Liberer la memoire de la grille de morpion
@@ -1142,12 +1194,14 @@ void play_ai(hash_table *hash_table1, stack *stack1, board *board1, uint8_t valu
 
         if (chain1->table_ball[index]->size == 0)
         {
+            print_ball(chain1->table_ball[index]);
             chain1->table_ball[index]->size = number_ball_remained;
             fill_ball_board(board1, chain1->table_ball[index]); // Rempli le tableau de billes
             ball = random_ball(chain1->table_ball[index]); // Prend au hasard une bille de couleur
             // Place en tete de pile la configuration et la bille utilise
             push(stack1, number_ball_remained, index_list, index_table_ball, ball);
             board1->table[ball] = value; // Place le pion sur la grille de morpion
+            print_ball(chain1->table_ball[index]);
             return;
         }
         index_table_ball = index;
@@ -1190,6 +1244,16 @@ void play_ai(hash_table *hash_table1, stack *stack1, board *board1, uint8_t valu
     push(stack1, number_ball_remained, index_list, index_table_ball, ball);
     board1->table[ball] = value; // Place le pion sur la grille de morpion
 
+}
+
+void print_ball(board *board_ball)
+{
+    uint32_t index;
+    for(index = 0; index < board_ball->size; index++)
+    {
+        printf("[%hhu] ", board_ball->table[index]);
+    }
+    printf("\n");
 }
 
 /*
@@ -1260,7 +1324,7 @@ void add_element(board *board_ball, uint8_t ball, uint8_t number)
  */
 void result_game(hash_table *hash_table1, stack *stack1, uint8_t result)
 {
-    uint8_t index;
+    uint8_t count = 0;
     current_play current_play1;
     chain *chain1;
 
@@ -1273,15 +1337,27 @@ void result_game(hash_table *hash_table1, stack *stack1, uint8_t result)
         { // Selon l'IA a gagne ou non
             case LOSE : // Supprime element
                 delete_element(chain1->table_ball[current_play1.index_table_ball], current_play1.ball);
-                chain1->state = LOSE;
+                if(count == 0)
+                {
+                    chain1->state = LOSE;
+                    count += 1;
+                }
                 break;
             case WIN : // Ajoute 3 boules de meme couleur
                 add_element(chain1->table_ball[current_play1.index_table_ball], current_play1.ball, 3);
-                chain1->state = WIN;
+                if(count == 0)
+                {
+                    chain1->state = WIN;
+                    count += 1;
+                }
                 break;
             case DRAW : // Ajoute 1 boule de meme couleur
                 add_element(chain1->table_ball[current_play1.index_table_ball], current_play1.ball, 1);
-                chain1->state = DRAW;
+                if(count == 0)
+                {
+                    chain1->state = DRAW;
+                    count += 1;
+                }
                 break;
             default :
                 break;
@@ -1306,7 +1382,7 @@ void write_board(FILE *file1, board *board1)
 /*
  * Lit dans un fichier un plateau
  */
-void read_board(FILE *file1, board *board1)
+board *read_board(FILE *file1, board *board1)
 {
     uint8_t index, size;
     fscanf(file1, "Plateau :\nTaille : %hhu\n", &size);
@@ -1316,6 +1392,7 @@ void read_board(FILE *file1, board *board1)
         fscanf(file1, "[%hhu] ", &board1->table[index]);
     }
     fscanf(file1, "\n");
+    return board1;
 }
 
 /*
@@ -1335,7 +1412,7 @@ void write_chain(FILE *file1, chain *chain1)
 /*
  * Lit dans un fichier une chiane de la liste
  */
-void read_chain(FILE *file1, chain *chain1)
+chain *read_chain(FILE *file1, chain *chain1)
 {
     uint8_t index, size, state;
     fscanf(file1, "Maillon :\nTaille : %hhu\nEtat : %hhu\n", &size, &state);
@@ -1344,8 +1421,9 @@ void read_chain(FILE *file1, chain *chain1)
     for(index = 0; index < chain1->size; index++)
     {
         fscanf(file1, "Configuration : %u\n", &(chain1->table_configuration[index]));
-        read_board(file1, chain1->table_ball[index]);
+        chain1->table_ball[index] = read_board(file1, chain1->table_ball[index]);
     }
+    return chain1;
 }
 
 /*
@@ -1403,11 +1481,6 @@ void read_stack(FILE *file1, stack *stack1)
  */
 void write_game(FILE *file1, game *game1)
 {
-    fprintf(file1, "Joueur 1 : %s\n", game1->player1->name);
-    fprintf(file1, "Forme : %hhu\n", game1->player1->shape);
-    fprintf(file1, "Joueur 2 : %s\n", game1->player2->name);
-    fprintf(file1, "Forme : %hhu\n", game1->player2->shape);
-    fprintf(file1, "Joueur courant : %s\n", game1->current_player->name);
     fprintf(file1, "Forme : %hhu\n", game1->current_player->shape);
     write_board(file1, game1->tray);
 }
@@ -1417,23 +1490,27 @@ void write_game(FILE *file1, game *game1)
  */
 void read_game(FILE *file1, game *game1)
 {
-    fscanf(file1, "Joueur 1 : %s\n", &(*game1->player1->name));
-    fscanf(file1, "Forme : %hhu\n", &game1->player1->shape);
-    fscanf(file1, "Joueur 2 : %s\n", &(*game1->player2->name));
-    fscanf(file1, "Forme : %hhu\n", &game1->player2->shape);
-    fscanf(file1, "Joueur courant : %s\n", &(*game1->current_player->name));
-    fscanf(file1, "Forme : %hhu\n", &game1->current_player->shape);
-    read_board(file1, game1->tray);
+    uint8_t shape;
+    fscanf(file1, "Forme : %hhu\n", &shape);
+    if(shape == ROUND)
+    {
+        game1->current_player = game1->player1;
+    }
+    else
+    {
+        game1->current_player = game1->player2;
+    }
+    game1->tray = read_board(file1, game1->tray);
 }
 
 /*
  * Sauvegarde du fichier
  */
-void save_file(game *game2, hash_table *hashtable, stack *stack1)
+void save_file(FILE *file1, game *game2, hash_table *hashtable, stack *stack1)
 {
     uint8_t index;
     chain *chain1; // Declare un pointeur de maillon
-    FILE *file1 = fopen("game.txt", "wt"); // Ouverture du fichier en ecriture
+    file1 = fopen("../game.txt", "wt+"); // Ouverture du fichier en ecriture
     if(file1 == NULL)
     { // Si il y a un probleme lors de la creation du fichier
         printf("Erreur lors de l'ouverture du fichier\n");
@@ -1458,30 +1535,22 @@ void save_file(game *game2, hash_table *hashtable, stack *stack1)
     fclose(file1);
 }
 
-void charge_file(game *game2, hash_table *hash_table1, stack *stack1)
+void charge_file(FILE *file1, game *game2, hash_table *hash_table1, stack *stack1)
 {
-    uint8_t index, index1;
+    uint32_t index, index1, size;
     chain *chain1; // Declare un pointeur de maillon
-    FILE *file1 = fopen("hashage.txt", "rt"); // Ouverture du fichier en lecture
-    if(file1 == NULL)
-    { // Si le fichier n'existe pas
-        printf("Erreur : fichier non existant\n");
-        exit(EXIT_FAILURE);
-    }
 
     read_game(file1, game2);
 
     for(index = 0; index < hash_table1->size; index++)
     { // Parcours de la table de hashage
-        fscanf(file1, "Taille de la liste : %u\n", &(hash_table1->table[index]->size));
-        for(index1 = 0; index1 < hash_table1->table[index]->size; index1++)
+        fscanf(file1, "Taille de la liste : %u\n", &size);
+        for(index1 = 0; index1 < size; index1++)
         { // Parcours de la liste
-            read_chain(file1, chain1); // Lecture d'une chaine
+            chain1 = read_chain(file1, chain1); // Lecture d'une chaine
             add_head(hash_table1->table[index], chain1); // Ajoute une nouvelle chaine
         }
     }
 
     read_stack(file1, stack1); // Lecture d'une pile
-
-    fclose(file1);
 }

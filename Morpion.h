@@ -100,7 +100,7 @@ typedef enum
 
 typedef enum
 { // Differents etats du menu
-    QUIT, CREATE, CPU_ONLY, SAVE
+    QUIT, CREATE, CPU_ONLY, CHARGE, SAVE, RESUME
 }STATE_MENU;
 
 typedef enum
@@ -138,7 +138,7 @@ uint8_t search_column(board *, uint8_t, uint8_t, uint8_t, uint8_t);
 
 // Cours de la partie
 void capture_player(uint8_t *);
-void turn_current_player(game *);
+void turn_current_player(game *, uint8_t *);
 void play(game *, hash_table *, stack *);
 void auto_play_ai(game *, hash_table *, stack *, stack *);
 
@@ -184,19 +184,21 @@ void symetry_configuration(board *);
 // Intelligence artificielle
 hash_table *create_ai();
 void play_ai(hash_table *, stack *, board *, uint8_t);
+void print_ball(board *);
 void delete_element(board *, uint8_t);
 void add_element(board *, uint8_t, uint8_t);
 void result_game(hash_table *, stack *, uint8_t);
 
+// Fichiers
 void write_board(FILE *, board *);
-void read_board(FILE *, board *);
+board *read_board(FILE *, board *);
 void write_chain(FILE *, chain *);
-void read_chain(FILE *, chain *);
+chain *read_chain(FILE *, chain *);
 void write_stack(FILE *, stack *);
 void read_stack(FILE *, stack *);
 void write_game(FILE *, game *);
 void read_game(FILE *, game *);
-void save_file(game *, hash_table *, stack *);
-void charge_file(game *, hash_table *, stack *);
+void save_file(FILE *, game *, hash_table *, stack *);
+void charge_file(FILE *,game *, hash_table *, stack *);
 
 #endif
