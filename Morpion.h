@@ -100,7 +100,7 @@ typedef enum
 
 typedef enum
 { // Differents etats du menu
-    QUIT, CREATE, CPU_ONLY
+    QUIT, CREATE, CPU_ONLY, SAVE
 }STATE_MENU;
 
 typedef enum
@@ -147,7 +147,7 @@ void print_board(board *);
 void menu(game *);
 
 // Listes
-chain *new_chain();
+chain *new_chain(uint8_t);
 list *new_list();
 _Bool is_empty(list *);
 void add_head(list *, chain *);
@@ -187,5 +187,16 @@ void play_ai(hash_table *, stack *, board *, uint8_t);
 void delete_element(board *, uint8_t);
 void add_element(board *, uint8_t, uint8_t);
 void result_game(hash_table *, stack *, uint8_t);
+
+void write_board(FILE *, board *);
+void read_board(FILE *, board *);
+void write_chain(FILE *, chain *);
+void read_chain(FILE *, chain *);
+void write_stack(FILE *, stack *);
+void read_stack(FILE *, stack *);
+void write_game(FILE *, game *);
+void read_game(FILE *, game *);
+void save_file(game *, hash_table *, stack *);
+void charge_file(game *, hash_table *, stack *);
 
 #endif

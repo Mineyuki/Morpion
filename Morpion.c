@@ -654,7 +654,7 @@ void menu(game *game1)
                 destroy_stack(stack2); // Destruction du stack 2
                 break;
             case SAVE :
-                save_file(game1,hash_table1, stack1, stack2);
+                save_file(game1, hash_table1, stack1);
                 break; 
             default : // Autre
                 break;
@@ -672,7 +672,7 @@ void menu(game *game1)
 /*
  * Allouer un maillon
  */
-chain *new_chain()
+chain *new_chain(uint8_t size)
 {
     chain *chain1 = malloc(sizeof(chain)); // Allouer une place pour un maillon
     if(chain1 == NULL)
@@ -682,21 +682,21 @@ chain *new_chain()
     }
 
     // Tableau qui contiendra toutes les rotations de la configuration
-    chain1->table_configuration = malloc(ROTATION * sizeof(uint32_t));
+    chain1->table_configuration = malloc(size * sizeof(uint32_t));
     if(chain1->table_configuration == NULL)
     { // Erreur lors de l'allocation d'un tableau de configuration
         printf("Erreur : Allocation impossible pour le tableau de configuration.\n");
         exit(EXIT_FAILURE);
     }
 
-    chain1->table_ball = malloc(ROTATION * sizeof(board *));
+    chain1->table_ball = malloc(size * sizeof(board *));
     if(chain1->table_ball == NULL)
     { // Erreur lors de l'allocation d'un tableau de billes
         printf("Erreur : Allocation impossible pour le tableau de billes.\n");
         exit(EXIT_FAILURE); // Sorti du programme
     }
 
-    chain1->size = ROTATION; // Nombre de rotation
+    chain1->size = size; // Nombre de rotation
     chain1->state = EMPTY; // Aucune
 
     return chain1; // Retour de la chaine
@@ -1163,7 +1163,7 @@ void play_ai(hash_table *hash_table1, stack *stack1, board *board1, uint8_t valu
             return;
         }
 
-        chain1 = new_chain(); // On cree un nouveau maillon
+        chain1 = new_chain(ROTATION); // On cree un nouveau maillon
 
         for (index = 0; index < ROTATION; index++)
         {
@@ -1289,115 +1289,199 @@ void result_game(hash_table *hash_table1, stack *stack1, uint8_t result)
     }
 }
 
-
-void save_file(game *game2, hash_table *hashtable, stack *stack1, stack *stack2){
-    FILE *fichier = NULL;
-    fichier = fopen("HASHAGE.sav", "w");
-    int i;
-    int y;
-    for (i = 0 ; i < 9 ; i ++){
-        while ( hashtable ->table[i]->head->next != NULL){
-            fprintf(fichier, "Table configuration : %d\n", &hashtable->table[i]->head->table_configuration);
-            for (y = 0 ; y < hashtable->table[i]->head->size ; y ++){
-                fprintf(fichier, "%hhu \t", &hashtable->table[i]->head->table_ball[y]->table);
-            }
-            fprintf(fichier, "\n");
-            hashtable->table[i]->head = hashtable->table[i]->head->next;
-        }
-        fprintf(fichier,"Taille de tab hash : %d", &hashtable->size);
+/*
+ * Ecrit dans un fichier un plateau
+ */
+void write_board(FILE *file1, board *board1)
+{
+    uint8_t index;
+    fprintf(file1, "Plateau :\nTaille : %hhu\n", board1->size);
+    for(index = 0; index < board1->size; index++)
+    { // Parcours le tableau
+        fprintf(file1, "[%hhu] ", board1->table[index]);
     }
-    fclose(fichier);
-
-    fichier = fopen("stack1.sav", "w");
-    while ( stack1->head->next != NULL) {
-        fprintf("fichier", "Index : %d\n", &stack1->head->current.index_list);
-        fprintf("fichier", "BALL :%hhu\n", &stack1->head->current.ball);
-        fprintf("fichier", "Index Hash Table : %hhu\n", &stack1->head->current.index_hash_table);
-        fprintf("fichier", "Index : %hhu\n", &stack1->head->current.index_table_ball);
-        stack1->head = stack1 ->head->next;
-
-    }
-    fclose(fichier);
-    fichier = fopen("stack2.sav", "w");
-    while ( stack2->head->next != NULL) {
-        fprintf("fichier", "Index : %d\n", &stack2->head->current.index_list);
-        fprintf("fichier", "BALL :%hhu\n", &stack2->head->current.ball);
-        fprintf("fichier", "Index Hash Table : %hhu\n", &stack2->head->current.index_hash_table);
-        fprintf("fichier", "Index : %hhu\n", &stack2->head->current.index_table_ball);
-        stack2->head = stack2->head->next;
-
-    }
-    fichier = fopen("Game", "w");
-    fprintf("fichier", "Player 1 %s\n", &game2->player1->name);
-    fprintf("fichier", "PLayer 2 %s\n", &game2->player2->name);
-    fprintf("fichier", "Current player : %s\n",&game2->current_player->name);
-    for(int z = 0 ; z < game2->tray->size; z++) {
-        fprintf("fichier", "%d\t", &game2->tray->table[z]);
-    }
-    fprintf("fichier", "\n");
-    fprintf("fichier", "Player 1 %hhu \n", &game2->player1->shape);
-    fprintf("fichier", "Player 2 %hhu \n", &game2->player2->shape);
-    fprintf("fichier", "Current Player %hhu \n", &game2->current_player->shape);
-
+    fprintf(file1, "\n");
 }
 
-void charge_file() {
-    int i;
-    int y;
-    FILE *fichier;
-    chain *chain1;
-    chain *chain2;
-    game *game1 = create_game();
-    hash_table *hash_table1;
-    hash_table1->table = malloc(sizeof(list)*9);
-    for ( int h = 0; h < 9 ; h++){
-        hash_table1->table[h]->head->table_ball = malloc(sizeof(9));
-
+/*
+ * Lit dans un fichier un plateau
+ */
+void read_board(FILE *file1, board *board1)
+{
+    uint8_t index, size;
+    fscanf(file1, "Plateau :\nTaille : %hhu\n", &size);
+    board1 = create_board(size); // Creation d'un plateau
+    for(index = 0; index < size; index++)
+    { // Parcours le tableau
+        fscanf(file1, "[%hhu] ", &board1->table[index]);
     }
-    stack *stack1 = malloc(sizeof(stack));
-    stack *stack2 = malloc(sizeof(stack));
-    chain1->table_configuration = malloc(sizeof(9));
-    fichier = fopen("HASHAGE.sav", "r");
-    for (i = 0; i < 9; i++) {
-        chain1 = malloc(sizeof(chain));
-        fscanf(fichier, "%d\n", &chain1->table_configuration);
-        chain2 = malloc(sizeof(chain));
-        fscanf(fichier, "%hhu\t", &chain1->table_ball[y]->table);
-        push(stack1,hash_table1->table[i], chain1,chain1->table_ball, chain1->table_configuration );
-        hash_table1->table[i]->head = hash_table1->table[i]->head->next;
-        fscanf(fichier, "Taille de tab hash : %d", &hash_table1->size);
-    }
-    fclose(fichier);
+    fscanf(file1, "\n");
+}
 
-    fichier = fopen("stack1.sav", "r");
-    while (stack1->head->next != NULL) {
-        fscanf("fichier", "Index : %d\n", &stack1->head->current.index_list);
-        fscanf("fichier", "BALL :%hhu\n", &stack1->head->current.ball);
-        fscanf("fichier", "Index Hash Table : %hhu\n", &stack1->head->current.index_hash_table);
-        ("fichier", "Index : %hhu\n", &stack1->head->current.index_table_ball);
-        stack1->head = stack1->head->next;
-
+/*
+ * Ecrit dans un fichier une chaine de la liste
+ */
+void write_chain(FILE *file1, chain *chain1)
+{
+    uint8_t index;
+    fprintf(file1, "Maillon :\nTaille : %hhu\nEtat : %hhu\n", chain1->size, chain1->state);
+    for (index = 0; index < chain1->size; index++)
+    {
+        fprintf(file1, "Configuration : %u\n", chain1->table_configuration[index]);
+        write_board(file1, chain1->table_ball[index]);
     }
-    fclose(fichier);
-    fichier = fopen("stack2.sav", "w");
-    while (stack2->head->next != NULL) {
-        scanf("fichier", "Index : %d\n", &stack2->head->current.index_list);
-        fprintf("fichier", "BALL :%hhu\n", &stack2->head->current.ball);
-        fprintf("fichier", "Index Hash Table : %hhu\n", &stack2->head->current.index_hash_table);
-        fprintf("fichier", "Index : %hhu\n", &stack2->head->current.index_table_ball);
-        stack2->head = stack2->head->next;
+}
 
+/*
+ * Lit dans un fichier une chiane de la liste
+ */
+void read_chain(FILE *file1, chain *chain1)
+{
+    uint8_t index, size, state;
+    fscanf(file1, "Maillon :\nTaille : %hhu\nEtat : %hhu\n", &size, &state);
+    chain1 = new_chain(size);
+    chain1->state = state;
+    for(index = 0; index < chain1->size; index++)
+    {
+        fscanf(file1, "Configuration : %u\n", &(chain1->table_configuration[index]));
+        read_board(file1, chain1->table_ball[index]);
     }
-    fichier = fopen("Game", "w");
-    fprintf("fichier", "Player 1 %s\n", &game1->player1->name);
-    fprintf("fichier", "PLayer 2 %s\n", &game1->player2->name);
-    fprintf("fichier", "Current player : %s\n", &game1->current_player->name);
-    for (int z = 0; z < game1->tray->size; z++) {
-        fprintf("fichier", "%d\t", &game1->tray->table[z]);
-    }
-    fprintf("fichier", "\n");
-    fprintf("fichier", "Player 1 %hhu \n", &game1->player1->shape);
-    fprintf("fichier", "Player 2 %hhu \n", &game1->player2->shape);
-    fprintf("fichier", "Current Player %hhu \n", &game1->current_player->shape);
+}
 
+/*
+ * Ecrit une pile dans un fichier
+ */
+void write_stack(FILE *file1, stack *stack1)
+{
+    uint32_t index;
+    chain_stack *chain_stack1 = stack1->head; // On pointe le maillon de tete de pile
+
+    fprintf(file1, "Pile :\nTaille : %u\n", stack1->size);
+    while(chain_stack1 != NULL)
+    {
+        fprintf(file1, "Indice de la table de hashage : %hhu\n", chain_stack1->current.index_hash_table);
+        fprintf(file1, "Indice de la liste : %u\n", chain_stack1->current.index_list);
+        fprintf(file1, "Indice du tableau de bille : %hhu\n", chain_stack1->current.index_table_ball);
+        fprintf(file1, "Bille : %hhu\n", chain_stack1->current.ball);
+        chain_stack1 = chain_stack1->next; // On pointe au maillon suivant
+    }
+}
+
+/*
+ * Lit une pile dans un fichier
+ */
+void read_stack(FILE *file1, stack *stack1)
+{
+    uint32_t index, size, index_list;
+    uint8_t index_hash_table, index_table_ball, ball;
+    current_play current_play1;
+    stack *stack_temp = new_stack(); // Pile temporaire
+
+    fscanf(file1, "Pile :\nTaille : %u\n", &size);
+
+    for(index = 0; index < size; index++)
+    { // Recupere chaque maillon de la pile et push dans la pile
+        fscanf(file1, "Indice de la table de hashage : %hhu\n", &index_hash_table);
+        fscanf(file1, "Indice de la liste : %u\n", &index_list);
+        fscanf(file1, "Indice du tableau de bille : %hhu\n", &index_table_ball);
+        fscanf(file1, "Bille : %hhu\n", &ball);
+        push(stack_temp, index_hash_table, index_list, index_table_ball, ball);
+    } // Lorsque l'on recupere, on recupere le bas de la pile jusqu'en haut
+
+    while(stack_temp->size != 0)
+    { // Tant qu'on atteind pas la fin de la pile
+        current_play1 = pop(stack_temp); // On recupere le maillon
+        // On push le maillon dans la bonne pile
+        push(stack1, current_play1.index_hash_table, current_play1.index_list, current_play1.index_table_ball, current_play1.ball);
+    } // On remet a l'endroit les elements de la pile
+
+    destroy_stack(stack_temp); // On detruit la pile temporaire
+}
+
+/*
+ * Ecrit le jeu dans un fichier
+ */
+void write_game(FILE *file1, game *game1)
+{
+    fprintf(file1, "Joueur 1 : %s\n", game1->player1->name);
+    fprintf(file1, "Forme : %hhu\n", game1->player1->shape);
+    fprintf(file1, "Joueur 2 : %s\n", game1->player2->name);
+    fprintf(file1, "Forme : %hhu\n", game1->player2->shape);
+    fprintf(file1, "Joueur courant : %s\n", game1->current_player->name);
+    fprintf(file1, "Forme : %hhu\n", game1->current_player->shape);
+    write_board(file1, game1->tray);
+}
+
+/*
+ * Lit le jeu dans un fichier
+ */
+void read_game(FILE *file1, game *game1)
+{
+    fscanf(file1, "Joueur 1 : %s\n", &(*game1->player1->name));
+    fscanf(file1, "Forme : %hhu\n", &game1->player1->shape);
+    fscanf(file1, "Joueur 2 : %s\n", &(*game1->player2->name));
+    fscanf(file1, "Forme : %hhu\n", &game1->player2->shape);
+    fscanf(file1, "Joueur courant : %s\n", &(*game1->current_player->name));
+    fscanf(file1, "Forme : %hhu\n", &game1->current_player->shape);
+    read_board(file1, game1->tray);
+}
+
+/*
+ * Sauvegarde du fichier
+ */
+void save_file(game *game2, hash_table *hashtable, stack *stack1)
+{
+    uint8_t index;
+    chain *chain1; // Declare un pointeur de maillon
+    FILE *file1 = fopen("game.txt", "wt"); // Ouverture du fichier en ecriture
+    if(file1 == NULL)
+    { // Si il y a un probleme lors de la creation du fichier
+        printf("Erreur lors de l'ouverture du fichier\n");
+        exit(EXIT_FAILURE); // Sorti du programme
+    }
+
+    write_game(file1, game2);
+
+    for (index = 0 ; index < hashtable->size ; index ++)
+    { // Parcours de la table de hashage
+        fprintf(file1, "Taille de la liste : %u\n", hashtable->table[index]->size);
+        chain1 = hashtable->table[index]->head; // On recupere le premier maillon
+        while (chain1 != NULL) // Tant que l'on atteind pas la fin de la liste
+        { // Parcours des maillons
+            write_chain(file1, chain1); // Ecrit le premier maillon
+            chain1 = chain1->next; // On passe au maillon suivant
+        }
+    }
+
+    write_stack(file1, stack1);
+
+    fclose(file1);
+}
+
+void charge_file(game *game2, hash_table *hash_table1, stack *stack1)
+{
+    uint8_t index, index1;
+    chain *chain1; // Declare un pointeur de maillon
+    FILE *file1 = fopen("hashage.txt", "rt"); // Ouverture du fichier en lecture
+    if(file1 == NULL)
+    { // Si le fichier n'existe pas
+        printf("Erreur : fichier non existant\n");
+        exit(EXIT_FAILURE);
+    }
+
+    read_game(file1, game2);
+
+    for(index = 0; index < hash_table1->size; index++)
+    { // Parcours de la table de hashage
+        fscanf(file1, "Taille de la liste : %u\n", &(hash_table1->table[index]->size));
+        for(index1 = 0; index1 < hash_table1->table[index]->size; index1++)
+        { // Parcours de la liste
+            read_chain(file1, chain1); // Lecture d'une chaine
+            add_head(hash_table1->table[index], chain1); // Ajoute une nouvelle chaine
+        }
+    }
+
+    read_stack(file1, stack1); // Lecture d'une pile
+
+    fclose(file1);
 }
